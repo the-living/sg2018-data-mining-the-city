@@ -9,20 +9,49 @@ import math
 import json
 import os
 from glob import glob
+import time
+
+class LogWriter:
+
+    def __init__(self, work_dir):
+        self.id = time.strftime("%y%m%d_%H%M%S", time.localtime())
+        self.file_name = "{}/{}".format(work_dir, "log_" + self.id + ".txt")
+        with open(self.file_name, 'wb') as f:
+            f.write("Starting job...")
+
+    def heading(self, text):
+        with open(self.file_name, 'ab') as f:
+            f.write("\n\n"+text)
+            f.write("\n========")
+
+    def log(self, text):
+        with open(self.file_name, 'ab') as f:
+            f.write("\n" + text)
+
+
+class Timer:
+
+    def __init__(self):
+        self.time = time.time()
+
+    def read(self):
+        return time.time() - self.time
 
 
 class VideoExtractor:
-    def __init__(self, video_path_front, video_path_back, fit_path, exif_path, rescale=None):
+    def __init__(self, video_paths, fit_path, rescale=None):
+
         # LOAD VIDEOS
-        self.video_a = cv2.VideoCapture(video_path_front)
-        self.video_b = cv2.VideoCapture(video_path_back)
+        self.videos = []
+        for video_path in video_paths:
+            self.videos.append(cv2.VideoCapture(video_path))
 
-        #assert self.video_a.get(cv2.CAP_PROP_FRAME_COUNT) == self.video_b.get(cv2.CAP_PROP_FRAME_COUNT), "ERROR: FRONT/BACK VIDEOS HAVE MISMATCHED LENGTHS"
+        template = self.videos[-1]
 
-        self.end = self.video_a.get(cv2.CAP_PROP_FRAME_COUNT) / float(self.video_a.get(cv2.CAP_PROP_FPS))
+        self.end = template.get(cv2.CAP_PROP_FRAME_COUNT) / float(template.get(cv2.CAP_PROP_FPS))
+        self.width = template.get(cv2.CAP_PROP_FRAME_WIDTH)
+        self.height = template.get(cv2.CAP_PROP_FRAME_HEIGHT)
 
-        self.width = self.video_a.get(cv2.CAP_PROP_FRAME_WIDTH)
-        self.height = self.video_a.get(cv2.CAP_PROP_FRAME_HEIGHT)
         self.rescale = rescale != 1
         if self.rescale:
             self.width = int(self.width * rescale)
@@ -33,12 +62,21 @@ class VideoExtractor:
 
         self.fitdata = self.loadFitData(fit_path)
 
-        self.exif = piexif.load(exif_path)
-        del self.exif["thumbnail"]
-        self.exif["0th"][piexif.ImageIFD.ImageWidth] = (self.width,1)
-        self.exif["0th"][piexif.ImageIFD.ImageLength] = (self.height,1)
-        self.exif["1st"][piexif.ImageIFD.ImageWidth] = (self.width,1)
-        self.exif["1st"][piexif.ImageIFD.ImageLength] = (self.height,1)
+        # if exif_path is not None:
+        #     self.exif = piexif.load(exif_path)
+        #     del self.exif["thumbnail"]
+        #     self.exif["0th"][piexif.ImageIFD.ImageWidth] = (self.width,1)
+        #     self.exif["0th"][piexif.ImageIFD.ImageLength] = (self.height,1)
+        #     self.exif["1st"][piexif.ImageIFD.ImageWidth] = (self.width,1)
+        #     self.exif["1st"][piexif.ImageIFD.ImageLength] = (self.height,1)
+        # else:
+        #     self.exif = None
+
+    def getDims(self):
+        return [self.width, self.height]
+
+    def getEnd(self):
+        return self.end
 
     def loadFitData(self, fp):
         data = FitFile(fp)
@@ -60,26 +98,30 @@ class VideoExtractor:
         return values
 
     def extract(self, time):
+
         if time > (self.end):
-            return None, None, None
+            return [None]
 
         t_pos = time * 1000
-        self.video_a.set(cv2.CAP_PROP_POS_MSEC, t_pos)
-        self.video_b.set(cv2.CAP_PROP_POS_MSEC, t_pos)
 
-        ret, frame_a = self.video_a.read()
-        ret, frame_b = self.video_b.read()
+        for video in self.videos:
+            video.set(cv2.CAP_PROP_POS_MSEC, t_pos)
+
+        frames = []
+
+        for video in self.videos:
+            ret, frame = video.read()
+            frames.append(frame)
 
         if self.rescale:
-            frame_a = cv2.resize(frame_a, (self.width,self.height), self.scale_method)
-            frame_b = cv2.resize(frame_b, (self.width,self.height), self.scale_method)
+            frames = [cv2.resize(frame, (self.width,self.height), self.scale_method) for frame in frames]
 
         record = {}
         if time in self.fitdata:
             record = self.fitdata[time]
         else:
             print("No FIT record for T{}".format(time))
-        return frame_a, frame_b, record
+        return frames + [record]
 
     def semicircles2dd(self,sc):
         return sc * (180/float(2.0**31))
@@ -89,7 +131,7 @@ class VideoExtractor:
         deg, mnt = divmod(mnt, 60)
         return ((int(deg),1), (int(mnt),1), (int(sec*1000000),1000000))
 
-    def writeEXIF(self, pathA, pathB, values):
+    def writeEXIF(self, file_paths, values):
         newexif = self.exif.copy()
         # UPDATE EXIF DATA WITH GPS DATA
         if values:
@@ -111,15 +153,15 @@ class VideoExtractor:
             del newexif["GPS"]
 
         # STRIP ANY EXISTING EXIF DATA
-        piexif.remove(pathA)
-        piexif.remove(pathB)
+        for file_path in file_paths:
+            piexif.remove(file_path)
 
         # CONVERT EXIF DICT TO BYTES
         exif_bytes = piexif.dump(newexif)
 
         # INSERT EXIF DATA INTO IMAGE FILE
-        piexif.insert(exif_bytes, pathA)
-        piexif.insert(exif_bytes, pathB)
+        for file_path in file_paths:
+            piexif.insert(exif_bytes, file_path)
 
 
 class SIFTExtractor:
@@ -163,3 +205,18 @@ class SIFTExtractor:
             return True
         except:
             return False
+
+
+def make_image_list(start_frame, end_frame, working_dir, prefix):
+
+    if os.path.exists("{}/image_list.txt".format(working_dir)):
+        os.remove("{}/image_list.txt".format(working_dir))
+
+    image_list = []
+
+    for i in range(start_frame, end_frame):
+        for d in ['N','S','E','W']:
+            image_list.append("{}_{}_{}.jpg".format(prefix, d, str(i).zfill(5)))
+
+    with open("{}/image_list.txt".format(working_dir), 'wb') as f:
+        f.write('\n'.join(image_list))
