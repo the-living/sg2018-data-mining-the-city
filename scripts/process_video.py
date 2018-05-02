@@ -6,17 +6,18 @@ import subprocess, shlex
 from helpers import VideoExtractor, Timer, LogWriter, make_image_list
 
 recon_settings = {
-    "SCRIPT_DIR": "/Users/james/Documents/GitHub/sg2018-data-mining-the-city/scripts",
-    "WORK_DIR": "/Users/james/Dropbox/TL_WORKING/SmartGeometry/stack_test/test_split",
+    "SCRIPT_DIR": "/home/tl-admin/DEV/sg2018-data-mining-the-city/scripts",
+    "WORK_DIR": "/home/tl-admin/DEV/SG_STACK/TEST_SPLIT",
     "IMAGE_DIR": "images",
 
-    "SKIP_LOAD_IMAGES": False,
+    "SKIP_LOAD_IMAGES": True,
     "SKIP_FIND_FEATURES": True,
     "SKIP_FIND_MATCHES": True,
     "SKIP_RECONSTRUCT": True,
     "SKIP_MERGE": True,
+    "SKIP_SPARSE_CONVERT": False,
 
-    "VIDEO_PATH": "/Users/james/Dropbox/TL_WORKING/SmartGeometry/stack_test/test_split/inputs/03_360.mp4",
+    "VIDEO_PATH": "/home/tl-admin/DEV/SG_STACK/TEST_SPLIT/inputs/03_360.mp4",
 
     "TIME_START": 90,
     "TIME_END": 270,
@@ -25,7 +26,7 @@ recon_settings = {
     "FRAME_HEIGHT": 1080,
     "FRAME_WIDTH": 2160,
     "FRAME_FOV": 0.45,
-    "FRAMES_PER_MODEL": 100,
+    "FRAMES_PER_MODEL": 180,
     "MODEL_OVERLAP": 10,
     "IMAGE_SCALE": 1.0,
 
@@ -34,9 +35,10 @@ recon_settings = {
     #"CAMERA_PARAMS": [0.156447,0.0926909],
     "CAMERA_MODEL": "SIMPLE_PINHOLE",
     "CAMERA_FOCAL_LENGTH": 768.734764,
+    "CAMERA_PARAMS": None,
 
     # "EXIF_REF": "/home/living/Dropbox/recon_test/inputs/ref_img-2.JPG",
-    "FIT_REF": "/Users/james/Dropbox/TL_WORKING/SmartGeometry/stack_test/test_split/inputs/2018-03-19-09-24-10.fit"
+    "FIT_REF": "/home/tl-admin/DEV/SG_STACK/TEST_SPLIT/inputs/2018-03-19-09-24-10.fit"
 }
 
 def reconstruct(settings):
@@ -48,6 +50,7 @@ def reconstruct(settings):
     SKIP_FIND_MATCHES = settings["SKIP_FIND_MATCHES"]
     SKIP_RECONSTRUCT = settings["SKIP_RECONSTRUCT"]
     SKIP_MERGE = settings["SKIP_MERGE"]
+    SKIP_SPARSE_CONVERT = settings["SKIP_SPARSE_CONVERT"]
 
     # VALIDATE PATHS
     SCRIPT_DIR = settings["SCRIPT_DIR"].rstrip("/")
@@ -133,7 +136,7 @@ def reconstruct(settings):
 
             file_names = ["{}_{}_{}.jpg".format(VIDEO_PREFIX, subflag[i], frame_ID) for i in xrange(len(frames))]
 
-            print("GENERATING FRAMES @ {} sec".format(t))
+            print("GENERATING FRAMES @ {d} sec".format(t))
 
             frame_data[frame_ID] = record
 
@@ -163,10 +166,14 @@ def reconstruct(settings):
         if os.path.exists("{}/database.db".format(WORK_DIR)):
             os.remove("{}/database.db".format(WORK_DIR))
 
-        # video_dims = extractor.getDims()
+        # frame_dims = extractor.getDims()
         frame_dims = [FRAME_WIDTH, FRAME_HEIGHT]
         camera_model = settings["CAMERA_MODEL"]
-        camera_intrinsics = [settings["CAMERA_FOCAL_LENGTH"]] + [video_dims[0]/2, video_dims[1]/2] + settings["CAMERA_PARAMS"]
+        # camera_intrinsics = [settings["CAMERA_FOCAL_LENGTH"]] + [frame_dims[0]/2, frame_dims[1]/2] + settings["CAMERA_PARAMS"]
+        camera_intrinsics = [settings["CAMERA_FOCAL_LENGTH"]] + [frame_dims[0]/2, frame_dims[1]/2]
+        if settings["CAMERA_PARAMS"]:
+            camera_intrinsics.append(settings["CAMERA_PARAMS"])
+
         camera_intrinsics_str = ",".join([str(d) for d in camera_intrinsics])
 
         raw_input = "{}/shell/feature_extract.sh {} {} {}".format(SCRIPT_DIR, WORK_DIR, camera_model, camera_intrinsics_str)
@@ -243,7 +250,7 @@ def reconstruct(settings):
 
             log.log("Constructed model [{}-{}]({} images) in directory: {} ({} sec)".format(start_frame, end_frame, end_frame-start_frame, MODEL_DIR, timer_model.read()))
 
-        log.log("Reconstruction finished ({} sec)".format(timer.read(())))
+        log.log("Reconstruction finished ({} sec)".format(timer.read()))
     else:
         log.log("Skipped")
 
@@ -298,6 +305,50 @@ def reconstruct(settings):
             log.log("{} model(s) found, at least 2 needed for merging.".format(len(models)))
 
         log.log("Merging finished ({} sec)".format(timer.read()))
+    else:
+        log.log("Skipped")
+
+    log.heading("MODEL CONVERSION TO PLY")
+    if not SKIP_SPARSE_CONVERT:
+        timer = Timer()
+
+        # FIND MERGED MODELS
+        models = []
+        merge_dir = "{}/merged/0".format(WORK_DIR)
+        if os.path.exists(merge_dir):
+            models.append(merge_dir)
+        else:
+            log.log("No merged model found at\n{}".format(merge_dir))
+            dirs = os.walk("{}/sparse".format(WORK_DIR))
+            model_dirs = next(dirs)[1]
+            models = []
+            for model_dir in model_dirs:
+                # try:
+                models.append(int(model_dir))
+            models.sort()
+            models = ["{}/sparse/{}/0/".format(WORK_DIR,m) for m in models]
+
+        log.log("Found {} models:{}".format(len(models), '\n'.join(models)))
+
+        convert_dir = "{}/sparse_ply".format(WORK_DIR)
+        if not os.path.exists(convert_dir):
+            os.mkdir(convert_dir)
+
+        for i,model in enumerate(models):
+            # MERGE MODEL
+            out_model = "{}/sparse_{}.ply".format(convert_dir,i) \
+                if len(models) >1 else \
+                "{}/sparse_merged.ply".format(convert_dir)
+
+            raw_input = "{}/shell/model_convert.sh {} {} {}".format(SCRIPT_DIR, model, out_model, "PLY")
+            args = shlex.split(raw_input)
+            print args
+            p = subprocess.Popen(args)
+            p.wait()
+
+            log.log("Converted model:\n{}\ninto model:\n{}".format(model, out_model))
+
+        log.log("Conversion finished ({} sec)".format(timer.read()))
     else:
         log.log("Skipped")
 
