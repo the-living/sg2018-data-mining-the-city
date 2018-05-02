@@ -6,33 +6,37 @@ import subprocess, shlex
 from helpers import VideoExtractor, Timer, LogWriter, make_image_list
 
 recon_settings = {
-    "SCRIPT_DIR": "/home/living/Dropbox/recon_FINAL/scripts",
-    "WORK_DIR": "/home/living/Dropbox/recon_FINAL/test_01",
+    "SCRIPT_DIR": "/Users/james/Documents/GitHub/sg2018-data-mining-the-city/scripts",
+    "WORK_DIR": "/Users/james/Dropbox/TL_WORKING/SmartGeometry/stack_test/test_split",
     "IMAGE_DIR": "images",
 
-    "SKIP_LOAD_IMAGES": True,
+    "SKIP_LOAD_IMAGES": False,
     "SKIP_FIND_FEATURES": True,
-    "SKIP_FIND_MATCHES": False,
+    "SKIP_FIND_MATCHES": True,
     "SKIP_RECONSTRUCT": True,
     "SKIP_MERGE": True,
 
-    "VIDEO_PATH": "/home/living/Dropbox/recon_FINAL/inputs/",
-    "VIDEO_FILES": ["02_N.mp4", "02_E.mp4", "02_S.mp4", "02_W.mp4"],
+    "VIDEO_PATH": "/Users/james/Dropbox/TL_WORKING/SmartGeometry/stack_test/test_split/inputs/03_360.mp4",
 
-    "TIME_START": 910,
-    "TIME_END": 1100,
+    "TIME_START": 90,
+    "TIME_END": 270,
     "TIME_INTERVAL": 1.0,
-    "IMAGE_SCALE": 1.0,
 
+    "FRAME_HEIGHT": 1080,
+    "FRAME_WIDTH": 2160,
+    "FRAME_FOV": 0.45,
     "FRAMES_PER_MODEL": 100,
     "MODEL_OVERLAP": 10,
+    "IMAGE_SCALE": 1.0,
 
-    "CAMERA_MODEL": "RADIAL_FISHEYE",
-    "CAMERA_FOCAL_LENGTH": 720.0,
-    "CAMERA_PARAMS": [0.156447,0.0926909],
+    #"CAMERA_MODEL": "RADIAL_FISHEYE",
+    #"CAMERA_FOCAL_LENGTH": 720.0,
+    #"CAMERA_PARAMS": [0.156447,0.0926909],
+    "CAMERA_MODEL": "SIMPLE_PINHOLE",
+    "CAMERA_FOCAL_LENGTH": 768.734764,
 
     # "EXIF_REF": "/home/living/Dropbox/recon_test/inputs/ref_img-2.JPG",
-    "FIT_REF": "/home/living/Dropbox/recon_FINAL/inputs/2018-04-08-15-33-35.fit"
+    "FIT_REF": "/Users/james/Dropbox/TL_WORKING/SmartGeometry/stack_test/test_split/inputs/2018-03-19-09-24-10.fit"
 }
 
 def reconstruct(settings):
@@ -58,6 +62,14 @@ def reconstruct(settings):
     if not os.path.exists(IMAGE_DIR):
         os.mkdir(IMAGE_DIR)
 
+    FRAME_WIDTH = settings["FRAME_WIDTH"]
+    FRAME_HEIGHT = settings["FRAME_HEIGHT"]
+    if FRAME_WIDTH < 2 * FRAME_HEIGHT:
+        FRAME_WIDTH = 2 * FRAME_HEIGHT
+    FRAME_FOV = settings["FRAME_FOV"]
+    IMAGE_SCALE = settings["IMAGE_SCALE"]
+
+
     # VIDEO TIME SETTINGS
     try:
         TIME_START = int(settings["TIME_START"])
@@ -66,22 +78,31 @@ def reconstruct(settings):
         TIME_START = 0
         TIME_END = int(math.floor(extractor.getEnd()))
     TIME_INTERVAL = settings["TIME_INTERVAL"]
-    NUN_FRAMES = int(math.floor((TIME_END - TIME_START) / float(TIME_INTERVAL)))
+    NUM_FRAMES = int(math.floor((TIME_END - TIME_START) / float(TIME_INTERVAL)))
 
     # GET PATHS TO VIDEOS
-    VIDEO_PATHS = [settings["VIDEO_PATH"] + path for path in settings["VIDEO_FILES"]]
-    for video in VIDEO_PATHS:
-        assert os.path.exists(video), "ERROR: VIDEO MISSING AT {}".format(video)
-    VIDEO_PREFIX = settings["VIDEO_FILES"][0].split('_')[0]
+    # VIDEO_PATHS = [settings["VIDEO_PATH"] + path for path in settings["VIDEO_FILES"]]
+    # for video in VIDEO_PATHS:
+    #     assert os.path.exists(video), "ERROR: VIDEO MISSING AT {}".format(video)
+    # VIDEO_PREFIX = settings["VIDEO_FILES"][0].split('_')[0]
+    VIDEO_PATH = settings["VIDEO_PATH"]
+    assert os.path.exists(VIDEO_PATH), "ERROR: VIDEO MISSING AT {}".format(VIDEO_PATH)
+    VIDEO_PREFIX = VIDEO_PATH.split("/")[-1].split(".")[0]
 
-    IMAGE_SCALE = settings["IMAGE_SCALE"]
     FIT_REF = settings["FIT_REF"]
     assert os.path.exists(FIT_REF), "ERROR: FIT REF MISSING AT {}".format(FIT_REF)
 
     if not SKIP_LOAD_IMAGES or not SKIP_FIND_FEATURES:
         # CREATE FRAME EXTRACTOR OBJECT
-        print("\nLOADING VIDEOS... {}".format(VIDEO_PATHS))
-        extractor = VideoExtractor(VIDEO_PATHS, FIT_REF, IMAGE_SCALE)
+        print("\nLOADING VIDEOS... {}".format(VIDEO_PATH))
+        extractor = VideoExtractor(
+            VIDEO_PATH,
+            FIT_REF,
+            IMAGE_SCALE,
+            frame_width=FRAME_WIDTH,
+            frame_height=FRAME_HEIGHT,
+            fov=FRAME_FOV
+            )
 
     log = LogWriter(WORK_DIR)
     log.heading("IMAGE LOADING")
@@ -89,25 +110,28 @@ def reconstruct(settings):
     if not SKIP_LOAD_IMAGES:
         timer = Timer()
 
-        log.log("Using videos:")
-        for path in VIDEO_PATHS:
-            log.log(path)
+        log.log("Using video:")
+        # for path in VIDEO_PATHS:
+        #     log.log(path)
+        log.log(VIDEO_PATH.split("\\")[-1])
 
         # ITERATE THROUGH FRAMES
         frame_data = {}
+        subflag = "NESW"
 
         print("\nEXTRACTING FRAMES:\nSTART: {} sec\nEND: {} sec\nINTERVAL: {} sec\n").format(TIME_START, TIME_END, TIME_INTERVAL)
 
         img_counter = 0
-        for frame in range(NUN_FRAMES):
+        for frame in range(NUM_FRAMES):
 
-            frame_ID = "%05d" % (frame)
-            file_names = ["{}_{}.jpg".format(v.split('.')[0], frame_ID) for v in settings["VIDEO_FILES"]]
+            frame_ID = "{:05d}".format(frame)
 
             t = TIME_START + frame*TIME_INTERVAL
             data = extractor.extract(t)
             frames = data[:-1]
             record = data[-1]
+
+            file_names = ["{}_{}_{}.jpg".format(VIDEO_PREFIX, subflag[i], frame_ID) for i in xrange(len(frames))]
 
             print("GENERATING FRAMES @ {} sec".format(t))
 
@@ -116,6 +140,7 @@ def reconstruct(settings):
             file_paths = ["{}/{}".format(IMAGE_DIR, file_name) for file_name in file_names]
 
             for i,file_path in enumerate(file_paths):
+                # print file_path
                 cv2.imwrite(file_path, frames[i])
                 img_counter += 1
 
@@ -138,7 +163,8 @@ def reconstruct(settings):
         if os.path.exists("{}/database.db".format(WORK_DIR)):
             os.remove("{}/database.db".format(WORK_DIR))
 
-        video_dims = extractor.getDims()
+        # video_dims = extractor.getDims()
+        frame_dims = [FRAME_WIDTH, FRAME_HEIGHT]
         camera_model = settings["CAMERA_MODEL"]
         camera_intrinsics = [settings["CAMERA_FOCAL_LENGTH"]] + [video_dims[0]/2, video_dims[1]/2] + settings["CAMERA_PARAMS"]
         camera_intrinsics_str = ",".join([str(d) for d in camera_intrinsics])
@@ -178,10 +204,10 @@ def reconstruct(settings):
 
         target_num = settings["FRAMES_PER_MODEL"]
         overlap = settings["MODEL_OVERLAP"]
-        num_chunks = int(round(float((NUN_FRAMES-overlap))/(target_num-overlap)))
-        remainder = NUN_FRAMES - (target_num*num_chunks - overlap*num_chunks + overlap)
+        num_chunks = int(round(float((NUM_FRAMES-overlap))/(target_num-overlap)))
+        remainder = NUM_FRAMES - (target_num*num_chunks - overlap*num_chunks + overlap)
 
-        log.log("Number of frames in model: {}".format(NUN_FRAMES))
+        log.log("Number of frames in model: {}".format(NUM_FRAMES))
         log.log("Target model size: {}".format(target_num))
         log.log("Model overlap: {}".format(overlap))
         log.log("Models to generate: {}".format(num_chunks))
@@ -194,7 +220,7 @@ def reconstruct(settings):
 
             start_frame = i * (target_num - overlap)
             end_frame = start_frame + target_num
-            
+
             if i == num_chunks-1:
                 end_frame += remainder
 
