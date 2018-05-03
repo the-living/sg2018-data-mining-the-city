@@ -15,7 +15,9 @@ recon_settings = {
     "SKIP_FIND_MATCHES": True,
     "SKIP_RECONSTRUCT": True,
     "SKIP_MERGE": True,
+    "SKIP_ALIGNMENT": False,
     "SKIP_SPARSE_CONVERT": False,
+
 
     "VIDEO_PATH": "/home/tl-admin/DEV/SG_STACK/TEST_SPLIT/inputs/03_360.mp4",
 
@@ -50,6 +52,7 @@ def reconstruct(settings):
     SKIP_FIND_MATCHES = settings["SKIP_FIND_MATCHES"]
     SKIP_RECONSTRUCT = settings["SKIP_RECONSTRUCT"]
     SKIP_MERGE = settings["SKIP_MERGE"]
+    SKIP_ALIGNMENT = settings["SKIP_ALIGNMENT"]
     SKIP_SPARSE_CONVERT = settings["SKIP_SPARSE_CONVERT"]
 
     # VALIDATE PATHS
@@ -108,6 +111,10 @@ def reconstruct(settings):
             )
 
     log = LogWriter(WORK_DIR)
+
+    # # # # # # # # #
+    # IMAGE LOADING #
+    # # # # # # # # #
     log.heading("IMAGE LOADING")
 
     if not SKIP_LOAD_IMAGES:
@@ -158,7 +165,9 @@ def reconstruct(settings):
     else:
         log.log("Skipped")
 
-
+    # # # # # # # # # # # #
+    # FEATURE EXTRACTION  #
+    # # # # # # # # # # # #
     log.heading("FEATURE EXTRACTION")
     if not SKIP_FIND_FEATURES:
         timer = Timer()
@@ -185,7 +194,9 @@ def reconstruct(settings):
     else:
         log.log("Skipped")
 
-
+    # # # # # # # # # #
+    # IMAGE MATCHING  #
+    # # # # # # # # # #
     log.heading("IMAGE MATCHING")
     if not SKIP_FIND_MATCHES:
         timer = Timer()
@@ -201,7 +212,9 @@ def reconstruct(settings):
     else:
         log.log("Skipped")
 
-
+    # # # # # # # # # # # # #
+    # SPARSE RECONSTRUCTION #
+    # # # # # # # # # # # # #
     log.heading("MODEL RECONSTRUCTION")
     if not SKIP_RECONSTRUCT:
         timer = Timer()
@@ -254,7 +267,9 @@ def reconstruct(settings):
     else:
         log.log("Skipped")
 
-
+    # # # # # # # # #
+    # MODEL MERGING #
+    # # # # # # # # #
     log.heading("MODEL MERGING")
     if not SKIP_MERGE:
         timer = Timer()
@@ -308,17 +323,72 @@ def reconstruct(settings):
     else:
         log.log("Skipped")
 
+    # # # # # # # # # #
+    # MODEL ALIGNMENT #
+    # # # # # # # # # #
+    log.heading("MODEL ALIGNMENT TO WORLD COORDINATES")
+    if not SKIP_ALIGNMENT:
+        timer = Timer()
+        # FIND MODELS
+        models = []
+        merge_dir = "{}/merged/0".format(WORK_DIR)
+        merge_flag = False
+
+        if os.path.exists(merge_dir):
+            models.append(merge_dir)
+            merge_flag = True
+        else:
+            log.log("No merged model found at\n{}".format(merge_dir))
+            dirs = os.walk("{}/sparse".format(WORK_DIR))
+            model_dirs = next(dirs)[1]
+            models = []
+            for model_dir in model_dirs:
+                # try:
+                models.append(int(model_dir))
+            models.sort()
+            models = ["{}/sparse/{}/0/".format(WORK_DIR,m) for m in models]
+
+        log.log("Found {} models:{}".format(len(models), '\n'.join(models)))
+
+        images_dir = "{}/images".format(WORK_DIR)
+        align_dir = "{}/sparse_aligned".format(WORK_DIR)
+        if not os.path.exists(align_dir):
+            os.mkdir(align_dir)
+
+        for i,model in enumerate(models):
+            # MERGE MODEL
+            out_model = "{}/sparse_aligned_{}.ply".format(align_dir,i) \
+                if not merge_flag else \
+                "{}/sparse_aligned_merged.ply".format(align_dir)
+
+            raw_input = "{}/shell/model_align.sh {} {} {}".format(SCRIPT_DIR, images_dir, model, out_model)
+            args = shlex.split(raw_input)
+            print args
+            p = subprocess.Popen(args)
+            p.wait()
+
+            log.log("Aligned model:\n{}\ninto model:\n{}".format(model, out_model))
+
+        log.log("Alignment finished ({} sec)".format(timer.read()))
+    else:
+        log.log("Skipped")
+
+    # # # # # # # # # # # # # #
+    # SPARSE MODEL CONVERSION #
+    # # # # # # # # # # # # # #
     log.heading("MODEL CONVERSION TO PLY")
     if not SKIP_SPARSE_CONVERT:
         timer = Timer()
 
-        # FIND MERGED MODELS
+        # FIND ALIGNED MODELS
         models = []
-        merge_dir = "{}/merged/0".format(WORK_DIR)
-        if os.path.exists(merge_dir):
-            models.append(merge_dir)
+        align_dir = "{}/sparse_aligned/".format(WORK_DIR)
+        align_flag = False
+        if os.path.exists(align_dir):
+            models.append(align_dir)
+            align_flag = True
         else:
-            log.log("No merged model found at\n{}".format(merge_dir))
+            log.log("No aligned model found at\n{}".format(merge_dir))
             dirs = os.walk("{}/sparse".format(WORK_DIR))
             model_dirs = next(dirs)[1]
             models = []
@@ -337,8 +407,8 @@ def reconstruct(settings):
         for i,model in enumerate(models):
             # MERGE MODEL
             out_model = "{}/sparse_{}.ply".format(convert_dir,i) \
-                if len(models) >1 else \
-                "{}/sparse_merged.ply".format(convert_dir)
+                if not align_flag else \
+                "{}/sparse_aligned.ply".format(convert_dir)
 
             raw_input = "{}/shell/model_convert.sh {} {} {}".format(SCRIPT_DIR, model, out_model, "PLY")
             args = shlex.split(raw_input)
