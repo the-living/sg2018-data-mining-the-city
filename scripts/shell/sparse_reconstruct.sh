@@ -11,7 +11,7 @@ colmap mapper \
 --image_path $WORKING_PATH/images \
 --export_path $WORKING_PATH/sparse/$2 \
 --image_list_path $WORKING_PATH/image_list.txt \
---Mapper.ba_refine_focal_length 0 \
+--Mapper.ba_refine_focal_length 1 \
 --Mapper.ba_refine_extra_params 0 \
 --Mapper.ba_global_images_ratio 1.2 \
 --Mapper.ba_global_points_ratio 1.2 \
