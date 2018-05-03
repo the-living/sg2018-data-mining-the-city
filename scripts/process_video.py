@@ -382,7 +382,7 @@ def reconstruct(settings):
 
         # FIND ALIGNED MODELS
         models = []
-        align_dir = "{}/sparse_aligned/".format(WORK_DIR)
+        align_dir = "{}/sparse_aligned/0".format(WORK_DIR)
         align_flag = False
         if os.path.exists(align_dir):
             models.append(align_dir)
