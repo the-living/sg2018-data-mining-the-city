@@ -10,6 +10,7 @@ import json
 import os
 from glob import glob
 import time
+from read_model import read_images_binary
 
 class LogWriter:
 
@@ -322,6 +323,71 @@ class SIFTExtractor:
             return True
         except:
             return False
+
+class CameraTrackExtractor:
+    def _q_mult(self, q1, q2):
+        a1, b1, c1, d1 = q1
+        a2, b2, c2, d2 = q2
+        a = a1 * a2 - b1 * b2 - c1 * c2 - d1 * d2
+        b = a1 * b2 + b1 * a2 + c1 * d2 - d1 * c2
+        c = a1 * c2 - b1 * d2 + c1 * a2 + d1 * b2
+        d = a1 * d2 + b1 * c2 - c1 * b2 + d1 * a2
+        return (a, b, c, d)
+
+    def _rot_with_q(self, q, x):
+        q_x = (0.0, x[0], x[1], x[2])
+        q_inv = (q[0], -q[1], -q[2], -q[3])
+        q_x_rot = self._q_mult(self._q_mult(q, q_x), q_inv)
+        x_rot = q_x_rot[1:]
+        return x_rot
+
+    def _compute_wpos(self, q, xi, t):
+        x_t_inv = (xi[0] - t[0], xi[1] - t[1], xi[2] - t[2])
+        q_inv = (q[0], -q[1], -q[2], -q[3])
+        pcenter_wpos = self._rot_with_q(q_inv, x_t_inv)
+        return pcenter_wpos
+
+    def _extract_xform(obj):
+        pos_init = (0.0, 0.0, 0.0)
+        target_init = (0.0, 0.0, 1.0)
+        pos_new = self._compute_wpos(obj.qvec, pos_init, obj.tvec)
+        target_new = self._compute_wpos(obj.qvec, target_init, obj.tvec)
+        target_vec = [t-p for t,p in zip(target_new, pos_new)]
+        return pos_new, target_vec
+
+    def _create_tracks(self,model_binary, dir_flag="N"):
+        tracks = []
+        model_images = read_images_binary(model_binary)
+        for i in model_images:
+            image_name = model_images[i].name.rstrip(".jpg")
+            if not image_name.split("_")[-2] == dir_flag:
+                continue
+            pos, target = extract_xform(model_images[i])
+            tracks.append({"name":image_name, "pos":pos, "target":target})
+
+        return tracks
+
+    def export(self, path_to_model_binary, out_path, save_JSON=True, save_CSV=True):
+        tracks = self._create_tracks(path_to_model_binary)
+
+        if not os.path.exists(out_path):
+            os.mkdir(out_path)
+
+        if save_JSON:
+            out_file = "{}/camera_tracks.json".format(out_path)
+            json.dump(tracks, open(out_file,'w'), separators=(',',':'))
+
+        if save_CSV:
+            out_file = "{}/camera_tracks.csv".format(out_path)
+            header = "name, pos_x, pos_y, pos_z, target_x, target_y, target_z\n"
+            with open(out_file,'w') as f:
+                f.write(header)
+                for track in tracks:
+                    track_pos = ",".join(map(str, track["pos"]))
+                    track_target = ",".join(map(str, track["target"]))
+                    line = "{},{},{}\n".format(track["name"],track_pos,track_target)
+                    f.write(line)
+            f.close()
 
 
 def make_image_list(start_frame, end_frame, working_dir, prefix):

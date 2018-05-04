@@ -3,7 +3,7 @@ import cv2
 import json, math
 from glob import glob
 import subprocess, shlex
-from helpers import VideoExtractor, Timer, LogWriter, make_image_list
+from helpers import VideoExtractor, Timer, LogWriter, make_image_list, CameraTrackExtractor
 
 recon_settings = {
     "SCRIPT_DIR": "/home/tl-admin/DEV/sg2018-data-mining-the-city/scripts",
@@ -410,6 +410,7 @@ def reconstruct(settings):
                 if not align_flag else \
                 "{}/sparse_aligned.ply".format(convert_dir)
 
+
             raw_input = "{}/shell/model_convert.sh {} {} {}".format(SCRIPT_DIR, model, out_model, "PLY")
             args = shlex.split(raw_input)
             print args
@@ -417,6 +418,11 @@ def reconstruct(settings):
             p.wait()
 
             log.log("Converted model:\n{}\ninto model:\n{}".format(model, out_model))
+
+            input_bin = "{}/images.bin".format(model)
+            CameraTrackExtractor.extract(input_bin, convert_dir)
+
+            log.log("Created camera tracks in: {}".format(convert_dir))
 
         log.log("Conversion finished ({} sec)".format(timer.read()))
     else:
