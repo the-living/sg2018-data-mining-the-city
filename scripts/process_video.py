@@ -357,9 +357,7 @@ def reconstruct(settings):
 
         for i,model in enumerate(models):
             # MERGE MODEL
-            out_model = "{}/sparse_aligned_{}.ply".format(align_dir,i) \
-                if not merge_flag else \
-                "{}/sparse_aligned_merged.ply".format(align_dir)
+            out_model = "{}/{}".format(align_dir,i)
 
             raw_input = "{}/shell/model_align.sh {} {} {}".format(SCRIPT_DIR, images_dir, model, out_model)
             args = shlex.split(raw_input)
