@@ -15,7 +15,7 @@ def q_mult(q1, q2):
 
     return (a, b, c, d)
 
-
+#test test
 def rot_with_q(q, x):
 
     q_x = (0.0, x[0], x[1], x[2])
