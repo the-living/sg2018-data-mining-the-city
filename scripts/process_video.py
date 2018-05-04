@@ -358,6 +358,10 @@ def reconstruct(settings):
         for i,model in enumerate(models):
             # MERGE MODEL
             out_model = "{}/{}".format(align_dir,i)
+            if not os.path.exists(out_model):
+                os.mkdir(out_model)
+
+            assert os.path.exists("{}/cameras.bin".format(model)), "ERROR: no binary files found at {}".format(model)
 
             raw_input = "{}/shell/model_align.sh {} {} {}".format(SCRIPT_DIR, images_dir, model, out_model)
             args = shlex.split(raw_input)
@@ -418,7 +422,8 @@ def reconstruct(settings):
             log.log("Converted model:\n{}\ninto model:\n{}".format(model, out_model))
 
             input_bin = "{}/images.bin".format(model)
-            CameraTrackExtractor.extract(input_bin, convert_dir)
+            track_extract = CameraTrackExtractor(input_bin)
+            track_extract.export(convert_dir, save_JSON=True, save_CSV=True)
 
             log.log("Created camera tracks in: {}".format(convert_dir))
 
