@@ -325,6 +325,9 @@ class SIFTExtractor:
             return False
 
 class CameraTrackExtractor:
+    def __init__(self, path_to_model_binary,dir_flag="N"):
+        self.tracks = self._create_tracks(path_to_model_binary,dir_flag)
+
     def _q_mult(self, q1, q2):
         a1, b1, c1, d1 = q1
         a2, b2, c2, d2 = q2
@@ -367,22 +370,21 @@ class CameraTrackExtractor:
 
         return tracks
 
-    def export(self, path_to_model_binary, out_path, save_JSON=True, save_CSV=True):
-        tracks = self._create_tracks(path_to_model_binary)
+    def export(self, out_path, save_JSON=True, save_CSV=True):
 
         if not os.path.exists(out_path):
             os.mkdir(out_path)
 
         if save_JSON:
             out_file = "{}/camera_tracks.json".format(out_path)
-            json.dump(tracks, open(out_file,'w'), separators=(',',':'))
+            json.dump(self.tracks, open(out_file,'w'), separators=(',',':'))
 
         if save_CSV:
             out_file = "{}/camera_tracks.csv".format(out_path)
             header = "name, pos_x, pos_y, pos_z, target_x, target_y, target_z\n"
             with open(out_file,'w') as f:
                 f.write(header)
-                for track in tracks:
+                for track in self.tracks:
                     track_pos = ",".join(map(str, track["pos"]))
                     track_target = ",".join(map(str, track["target"]))
                     line = "{},{},{}\n".format(track["name"],track_pos,track_target)
