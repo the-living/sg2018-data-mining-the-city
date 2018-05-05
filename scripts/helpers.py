@@ -135,7 +135,7 @@ class VideoExtractor:
     def __init__(
         self,
         video_path,
-        fit_path,
+        # fit_path=None,
         rescale=None,
         frame_width=2160,
         frame_height=1080,
@@ -165,7 +165,7 @@ class VideoExtractor:
             if rescale < 1:
                 self.scale_method = cv2.INTER_LINEAR
 
-        self.fitdata = self.loadFitData(fit_path)
+        # self.fitdata = self.loadFitData(fit_path)
 
         self.pcam = PerspectiveExtractor(frame_height, frame_width, fov)
         self.pan = pan
@@ -181,35 +181,35 @@ class VideoExtractor:
         # else:
         #     self.exif = None
 
-    def getDims(self):
-        return [self.width, self.height]
+    # def getDims(self):
+    #     return [self.width, self.height]
 
     def getEnd(self):
         return self.end
 
-    def loadFitData(self, fp):
-        data = FitFile(fp)
-        values = {}
-
-        for record in data.get_messages('record'):
-            entry = {}
-            timestamp = -1
-
-            for record_data in record:
-                if "timestamp" in record_data.name:
-                    timestamp = record_data.value
-                    continue
-
-                entry[record_data.name] = [
-                    record_data.value,
-                    record_data.units if record_data.units else None]
-            values[timestamp] = entry
-        return values
+    # def loadFitData(self, fp):
+    #     data = FitFile(fp)
+    #     values = {}
+    #
+    #     for record in data.get_messages('record'):
+    #         entry = {}
+    #         timestamp = -1
+    #
+    #         for record_data in record:
+    #             if "timestamp" in record_data.name:
+    #                 timestamp = record_data.value
+    #                 continue
+    #
+    #             entry[record_data.name] = [
+    #                 record_data.value,
+    #                 record_data.units if record_data.units else None]
+    #         values[timestamp] = entry
+    #     return values
 
     def extract(self, time):
 
-        if time > (self.end):
-            return [None]
+        if time >= (self.end):
+            return None
 
         t_pos = time * 1000
 
@@ -225,6 +225,8 @@ class VideoExtractor:
         #     frames.append(frame)
 
         ret, frame = self.video.read()
+        if not ret:
+            return None
         for tilt in self.tilt:
             for pan in self.pan:
                 center = np.array([pan, tilt])
@@ -234,52 +236,53 @@ class VideoExtractor:
         if self.rescale:
             frames = [cv2.resize(frame, (self.width,self.height), self.scale_method) for frame in frames]
 
-        record = {}
-        if time in self.fitdata:
-            record = self.fitdata[time]
-        else:
-            print("No FIT record for T{}".format(time))
-        return frames + [record]
+        # record = {}
+        # if time in self.fitdata:
+        #     record = self.fitdata[time]
+        # else:
+        #     print("No FIT record for T{}".format(time))
+        # return frames + [record]
+        return frames
 
-    def semicircles2dd(self,sc):
-        return sc * (180/float(2.0**31))
+    # def semicircles2dd(self,sc):
+    #     return sc * (180/float(2.0**31))
 
-    def dd2dms(self, dd):
-        mnt, sec = divmod(dd*3600, 60)
-        deg, mnt = divmod(mnt, 60)
-        return ((int(deg),1), (int(mnt),1), (int(sec*1000000),1000000))
+    # def dd2dms(self, dd):
+    #     mnt, sec = divmod(dd*3600, 60)
+    #     deg, mnt = divmod(mnt, 60)
+    #     return ((int(deg),1), (int(mnt),1), (int(sec*1000000),1000000))
 
-    def writeEXIF(self, file_paths, values):
-        newexif = self.exif.copy()
-        # UPDATE EXIF DATA WITH GPS DATA
-        if values:
-            del newexif["GPS"]
-            gps = {}
-            if "position_lat" in values:
-                latitude = self.semicircles2dd(int(values["position_lat"][0]))
-                longitude = self.semicircles2dd(int(values["position_long"][0]))
-                gps[piexif.GPSIFD.GPSLatitudeRef] = 'N' if latitude > 0 else 'S'
-                gps[piexif.GPSIFD.GPSLongitudeRef] = 'E' if longitude > 0 else 'W'
-                gps[piexif.GPSIFD.GPSLatitude] = self.dd2dms(abs(latitude))
-                gps[piexif.GPSIFD.GPSLongitude] = self.dd2dms(abs(longitude))
-            if "enhanced_altitude" in values:
-                elev = values["enhanced_altitude"][0]
-                gps[piexif.GPSIFD.GPSAltitudeRef] = 0 if elev >= 0 else 1
-                gps[piexif.GPSIFD.GPSAltitude] = (abs(int(elev*1000000)),10000000)
-            newexif["GPS"] = gps
-        else:
-            del newexif["GPS"]
+    # def writeEXIF(self, file_paths, values):
+    #     newexif = self.exif.copy()
+    #     # UPDATE EXIF DATA WITH GPS DATA
+    #     if values:
+    #         del newexif["GPS"]
+    #         gps = {}
+    #         if "position_lat" in values:
+    #             latitude = self.semicircles2dd(int(values["position_lat"][0]))
+    #             longitude = self.semicircles2dd(int(values["position_long"][0]))
+    #             gps[piexif.GPSIFD.GPSLatitudeRef] = 'N' if latitude > 0 else 'S'
+    #             gps[piexif.GPSIFD.GPSLongitudeRef] = 'E' if longitude > 0 else 'W'
+    #             gps[piexif.GPSIFD.GPSLatitude] = self.dd2dms(abs(latitude))
+    #             gps[piexif.GPSIFD.GPSLongitude] = self.dd2dms(abs(longitude))
+    #         if "enhanced_altitude" in values:
+    #             elev = values["enhanced_altitude"][0]
+    #             gps[piexif.GPSIFD.GPSAltitudeRef] = 0 if elev >= 0 else 1
+    #             gps[piexif.GPSIFD.GPSAltitude] = (abs(int(elev*1000000)),10000000)
+    #         newexif["GPS"] = gps
+    #     else:
+    #         del newexif["GPS"]
 
         # STRIP ANY EXISTING EXIF DATA
-        for file_path in file_paths:
-            piexif.remove(file_path)
+        # for file_path in file_paths:
+        #     piexif.remove(file_path)
 
         # CONVERT EXIF DICT TO BYTES
-        exif_bytes = piexif.dump(newexif)
+        # exif_bytes = piexif.dump(newexif)
 
         # INSERT EXIF DATA INTO IMAGE FILE
-        for file_path in file_paths:
-            piexif.insert(exif_bytes, file_path)
+        # for file_path in file_paths:
+        #     piexif.insert(exif_bytes, file_path)
 
 
 class SIFTExtractor:

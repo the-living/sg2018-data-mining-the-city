@@ -21,8 +21,8 @@ recon_settings = {
 
     "VIDEO_PATH": "/home/tl-admin/DEV/SG_STACK/TEST_SPLIT/inputs/03_360.mp4",
 
-    "TIME_START": 90,
-    "TIME_END": 270,
+    # "TIME_START": 0,
+    # "TIME_END": 200,
     "TIME_INTERVAL": 1.0,
 
     "FRAME_HEIGHT": 1080,
@@ -40,7 +40,7 @@ recon_settings = {
     "CAMERA_PARAMS": None,
 
     # "EXIF_REF": "/home/living/Dropbox/recon_test/inputs/ref_img-2.JPG",
-    "FIT_REF": "/home/tl-admin/DEV/SG_STACK/TEST_SPLIT/inputs/2018-03-19-09-24-10.fit"
+    # "FIT_REF": "/home/tl-admin/DEV/SG_STACK/TEST_SPLIT/inputs/2018-03-19-09-24-10.fit"
 }
 
 def reconstruct(settings):
@@ -82,7 +82,8 @@ def reconstruct(settings):
         TIME_END = int(settings["TIME_END"])
     except KeyError:
         TIME_START = 0
-        TIME_END = int(math.floor(extractor.getEnd()))
+        # TIME_END = int(math.floor(extractor.getEnd()))
+        TIME_END = 600
     TIME_INTERVAL = settings["TIME_INTERVAL"]
     NUM_FRAMES = int(math.floor((TIME_END - TIME_START) / float(TIME_INTERVAL)))
 
@@ -95,15 +96,15 @@ def reconstruct(settings):
     assert os.path.exists(VIDEO_PATH), "ERROR: VIDEO MISSING AT {}".format(VIDEO_PATH)
     VIDEO_PREFIX = VIDEO_PATH.split("/")[-1].split(".")[0]
 
-    FIT_REF = settings["FIT_REF"]
-    assert os.path.exists(FIT_REF), "ERROR: FIT REF MISSING AT {}".format(FIT_REF)
+    # FIT_REF = settings["FIT_REF"]
+    # assert os.path.exists(FIT_REF), "ERROR: FIT REF MISSING AT {}".format(FIT_REF)
 
     if not SKIP_LOAD_IMAGES or not SKIP_FIND_FEATURES:
         # CREATE FRAME EXTRACTOR OBJECT
         print("\nLOADING VIDEOS... {}".format(VIDEO_PATH))
         extractor = VideoExtractor(
             VIDEO_PATH,
-            FIT_REF,
+            # FIT_REF,
             IMAGE_SCALE,
             frame_width=FRAME_WIDTH,
             frame_height=FRAME_HEIGHT,
@@ -126,7 +127,7 @@ def reconstruct(settings):
         log.log(VIDEO_PATH.split("\\")[-1])
 
         # ITERATE THROUGH FRAMES
-        frame_data = {}
+        # frame_data = {}
         subflag = "NESW"
 
         print("\nEXTRACTING FRAMES:\nSTART: {} sec\nEND: {} sec\nINTERVAL: {} sec\n").format(TIME_START, TIME_END, TIME_INTERVAL)
@@ -137,15 +138,18 @@ def reconstruct(settings):
             frame_ID = "{:05d}".format(frame)
 
             t = TIME_START + frame*TIME_INTERVAL
-            data = extractor.extract(t)
-            frames = data[:-1]
-            record = data[-1]
+            # data = extractor.extract(t)
+            # frames = data[:-1]
+            # record = data[-1]
+            frames = extractor.extract(t)
+            if frames is None:
+                continue
 
             file_names = ["{}_{}_{}.jpg".format(VIDEO_PREFIX, subflag[i], frame_ID) for i in xrange(len(frames))]
 
-            print("GENERATING FRAMES @ {d} sec".format(t))
+            print("GENERATING FRAMES @ {} sec".format(t))
 
-            frame_data[frame_ID] = record
+            # frame_data[frame_ID] = record
 
             file_paths = ["{}/{}".format(IMAGE_DIR, file_name) for file_name in file_names]
 
@@ -158,8 +162,8 @@ def reconstruct(settings):
                 # extractor.writeEXIF(file_paths, record)
 
         # SAVE FRAME DATA
-        with open("{}/image_data.json".format(WORK_DIR), mode='w') as f:
-            json.dump(frame_data, f, sort_keys=True, indent=4, separators=(',', ': '))
+        # with open("{}/image_data.json".format(WORK_DIR), mode='w') as f:
+        #     json.dump(frame_data, f, sort_keys=True, indent=4, separators=(',', ': '))
 
         log.log("Successfully loaded {} images ({} sec)".format(img_counter, timer.read()))
     else:
