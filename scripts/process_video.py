@@ -130,6 +130,10 @@ def reconstruct(settings):
         # frame_data = {}
         subflag = "NESW"
 
+        if TIME_END > int(math.floor(extractor.getEnd())):
+            TIME_END = int(math.floor(extractor.getEnd()))
+            NUM_FRAMES = int(math.floor((TIME_END - TIME_START) / float(TIME_INTERVAL)))
+
         print("\nEXTRACTING FRAMES:\nSTART: {} sec\nEND: {} sec\nINTERVAL: {} sec\n").format(TIME_START, TIME_END, TIME_INTERVAL)
 
         img_counter = 0
