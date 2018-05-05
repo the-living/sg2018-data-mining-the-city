@@ -353,7 +353,7 @@ class CameraTrackExtractor:
         pcenter_wpos = self._rot_with_q(q_inv, x_t_inv)
         return pcenter_wpos
 
-    def _extract_xform(obj):
+    def _extract_xform(self, obj):
         pos_init = (0.0, 0.0, 0.0)
         target_init = (0.0, 0.0, 1.0)
         pos_new = self._compute_wpos(obj.qvec, pos_init, obj.tvec)
@@ -368,7 +368,7 @@ class CameraTrackExtractor:
             image_name = model_images[i].name.rstrip(".jpg")
             if not image_name.split("_")[-2] == dir_flag:
                 continue
-            pos, target = extract_xform(model_images[i])
+            pos, target = self._extract_xform(model_images[i])
             tracks.append({"name":image_name, "pos":pos, "target":target})
 
         return tracks
