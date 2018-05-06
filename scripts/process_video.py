@@ -439,7 +439,7 @@ def reconstruct(settings):
     else:
         log.log("Skipped")
 
-    log.log("\n...job finished.")
+    log.log("\n...job finished. ({} sec)".format(timer_global.read()))
 
 if __name__ == "__main__":
     reconstruct(recon_settings)
