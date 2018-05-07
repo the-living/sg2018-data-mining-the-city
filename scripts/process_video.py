@@ -45,7 +45,7 @@ recon_settings = {
     # "CAMERA_PARAMS": [-0.00393402,0.000857394],
     #---
     "CAMERA_MODEL": "SIMPLE_PINHOLE",
-    "CAMERA_FOCAL_LENGTH": 688.26,
+    "CAMERA_FOCAL_LENGTH": 689.661,
     "CAMERA_PARAMS": None,
 
     # "EXIF_REF": "/home/living/Dropbox/recon_test/inputs/ref_img-2.JPG",
