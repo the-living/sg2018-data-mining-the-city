@@ -4,12 +4,17 @@
 1. ```process_video.py```:  
 Primary script for generating sparse reconstruction model, using OpenCV to extract frames from source video, generate perspective projections, and issue sequence of COLMAP commands via CLI.
 
-2. ```dense_reconstruction.py``` :  
+2. ```dense_reconstruction.py```:  
 Primary script for generating dense reconstruction from existing sparse reconstruction using COLMAP commands via CLI.
 
-3. ```helpers.py``` :  
+3. ```helpers.py```:  
 Assorted methods and object classes used in the sparse and dense reconstruction scripts.
 
+4. ```fit_dump.py```:  
+Extracts all data from binary FIT file to human-readable JSON files.
+
+5. ```gen_tracks.py```:  
+Extracts and computes per-image camera position and orientation vector from a sparse reconstruction ```images.bin``` to CSV for use in Unity.
 
 ### DATA VISUALIZATION SCRIPTS
 1. ```gen_keypoint_label_raster.py```:  
