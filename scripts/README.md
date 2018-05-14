@@ -10,10 +10,13 @@ Primary script for generating dense reconstruction from existing sparse reconstr
 3. ```helpers.py```:  
 Assorted methods and object classes used in the sparse and dense reconstruction scripts.
 
-4. ```fit_dump.py```:  
+4. ```trim_inputs.py```:  
+Extracts trimmed video and audio clips as well as trimmed data from FIT file in JSON format using ```ffmpeg```. Start & end times are specified in seconds.
+
+5. ```fit_dump.py```:  
 Extracts all data from binary FIT file to human-readable JSON files.
 
-5. ```gen_tracks.py```:  
+6. ```gen_tracks.py```:  
 Extracts and computes per-image camera position and orientation vector from a sparse reconstruction ```images.bin``` to CSV for use in Unity.
 
 ### DATA VISUALIZATION SCRIPTS
