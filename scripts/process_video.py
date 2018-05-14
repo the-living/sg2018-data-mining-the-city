@@ -10,10 +10,10 @@ recon_settings = {
     "WORK_DIR": "/home/tl-admin/DEV/SG_STACK/TEST_SPLIT",
     "IMAGE_DIR": "images",
 
-    "SKIP_LOAD_IMAGES": True,
-    "SKIP_FIND_FEATURES": True,
-    "SKIP_FIND_MATCHES": True,
-    "SKIP_RECONSTRUCT": True,
+    "SKIP_LOAD_IMAGES": False,
+    "SKIP_FIND_FEATURES": False,
+    "SKIP_FIND_MATCHES": False,
+    "SKIP_RECONSTRUCT": False,
     "SKIP_MERGE": True,
     "SKIP_ALIGNMENT": False,
     "SKIP_SPARSE_CONVERT": False,
@@ -27,7 +27,7 @@ recon_settings = {
 
     "FRAME_HEIGHT": 1080,
     "FRAME_WIDTH": 2160,
-    "FRAME_FOV": 0.45,
+    "FRAME_FOV": 0.50,
     "FRAMES_PER_MODEL": 180,
     "MODEL_OVERLAP": 10,
     "IMAGE_SCALE": 1.0,
@@ -35,12 +35,21 @@ recon_settings = {
     #"CAMERA_MODEL": "RADIAL_FISHEYE",
     #"CAMERA_FOCAL_LENGTH": 720.0,
     #"CAMERA_PARAMS": [0.156447,0.0926909],
+    #---
+    # "CAMERA_MODEL": "SIMPLE_PINHOLE",
+    # "CAMERA_FOCAL_LENGTH": 768.734764,
+    # "CAMERA_PARAMS": None,
+    #---
+    # "CAMERA_MODEL": "RADIAL",
+    # "CAMERA_FOCAL_LENGTH": 690.319,
+    # "CAMERA_PARAMS": [-0.00393402,0.000857394],
+    #---
     "CAMERA_MODEL": "SIMPLE_PINHOLE",
-    "CAMERA_FOCAL_LENGTH": 768.734764,
+    "CAMERA_FOCAL_LENGTH": 687.782,
     "CAMERA_PARAMS": None,
 
     # "EXIF_REF": "/home/living/Dropbox/recon_test/inputs/ref_img-2.JPG",
-    # "FIT_REF": "/home/tl-admin/DEV/SG_STACK/TEST_SPLIT/inputs/2018-03-19-09-24-10.fit"
+    "FIT_REF": "/home/living/Dropbox/sg2018-data-mining-the-city/inputs/2018-04-30-12-55-26.fit"
 }
 
 def reconstruct(settings):
@@ -189,7 +198,7 @@ def reconstruct(settings):
         # camera_intrinsics = [settings["CAMERA_FOCAL_LENGTH"]] + [frame_dims[0]/2, frame_dims[1]/2] + settings["CAMERA_PARAMS"]
         camera_intrinsics = [settings["CAMERA_FOCAL_LENGTH"]] + [frame_dims[0]/2, frame_dims[1]/2]
         if settings["CAMERA_PARAMS"]:
-            camera_intrinsics.append(settings["CAMERA_PARAMS"])
+            camera_intrinsics + settings["CAMERA_PARAMS"]
 
         camera_intrinsics_str = ",".join([str(d) for d in camera_intrinsics])
 
@@ -439,7 +448,7 @@ def reconstruct(settings):
     else:
         log.log("Skipped")
 
-    log.log("\n...job finished.")
+    log.log("\n...job finished. ({} sec)".format(timer_global.read()))
 
 if __name__ == "__main__":
     reconstruct(recon_settings)
