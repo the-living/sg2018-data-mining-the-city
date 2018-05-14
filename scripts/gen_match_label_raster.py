@@ -2,24 +2,25 @@ import cv2
 from colmap_database import COLMAPDatabase, blob_to_array, pair_id_to_image_ids
 import numpy as np
 
+# POINT TO SPARSE RECONSTRUCTION DATABASE (.DB)
 DB_PATH = "vis/model/database.db"
+# POINT TO SPARSE RECONSTRUCTION IMAGES FOLDER
 IMG_PATH = "vis/model/images"
-OUT_PATH = "vis/model/image_match"
+# POINT TO OUTPUT PATH FOR SAVED IMAGES
+OUT_PATH = "vis/model/image_match_bw"
 
 db = COLMAPDatabase.connect(DB_PATH)
 
 rows = db.execute("SELECT * FROM images")
 
+# CREATE LOOKUP FOR PRIMARY MATCH PAIRS
 maxmatch = {}
 
 for img in rows:
     if img[0] not in maxmatch:
         maxmatch[img[0]] = None
 
-# db.execute("SELECT pair_id FROM inlier_matches WHERE ") image_id is
-
 rows = db.execute("SELECT * FROM inlier_matches")
-
 for match in rows:
     id1,id2 = pair_id_to_image_ids(match[0])
     if maxmatch[id1] is None:
@@ -32,6 +33,7 @@ for match in rows:
     elif maxmatch[id2][1] < match[1]:
         maxmatch[id2] = [match[0],match[1],2]
 
+# ITERATE THROUGH MATCHES & GENERATE VISUALIZATION
 for img in maxmatch.keys():
     img1,img2 = pair_id_to_image_ids(maxmatch[img][0])
     img1_name = next(db.execute("SELECT name FROM images WHERE image_id = {}".format(img1)))[0]
@@ -102,40 +104,3 @@ for img in maxmatch.keys():
     cv2.imwrite(outpath, out_img)
 
 db.close()
-
-
-
-    # blob = blob_to_array(row[-1], np.uint32, (-1,2))
-    # print blob
-#
-# for kp in rows:
-#     # kp = next(rows)
-#     img_name = db.execute("SELECT name FROM images WHERE image_id = {}".format(kp[0]))
-#     image_fp = next(img_name)[0]
-#     img = cv2.imread("{}/{}".format(IMG_PATH,image_fp),0)
-#     img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-#
-#     # print kp
-#     points = blob_to_array(kp[-1], np.float32,(kp[1],kp[2]))
-#     for pt in points:
-#         cv2.circle(
-#             img,
-#             tuple(pt[:2]),
-#             3,
-#             (0,0,255),
-#             thickness=-1)
-#
-#     # cv2.imshow("frame", img)
-#     cv2.imwrite("{}/{}.label.jpg".format(OUT_PATH, image_fp.rstrip(".jpg")),img)
-#     # cv2.waitKey()
-#     # cv2.destroyAllWindows()
-#
-# rows = db.execute("SELECT * FROM keypoints")
-
-
-
-# for item in rows:
-#     blob = item[-1]
-#     print blob
-#     # for subitem in item:
-#     #     print subitem
